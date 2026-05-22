@@ -1,0 +1,87 @@
+---
+title: "Can We Predict Abalone Age Without Cutting It Open?"
+author: "Beakale Amenu Tefera"
+date: "2026"
+output: html_document
+---
+## 1: Introduction & Data Loading
+
+In this project, we ask:
+**Can we predict the age of an abalone from its physical 
+measurements, without cutting it open?**
+
+An abalone is a sea snail.A marine shellfish found in cold coastal
+waters around the world. It is considered a delicacy in many countries, 
+especially in East Asia, and is commercially farmed and harvested.
+
+Normally, age is determined by cutting the shell and counting 
+rings under a microscope. This project explores whether machine 
+learning can replace that process using only external measurements.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load-data}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset
+abalone <- read.csv("/home/beakale/Desktop/Projects/abalone_project/abalone.data", 
+                    header = FALSE)
+
+# Assign column names
+colnames(abalone) <- c("Sex", "Length", "Diameter", "Height",
+                       "Whole_weight", "Shucked_weight", 
+                       "Viscera_weight", "Shell_weight", "Rings")
+
+# Fix Sex as a factor
+abalone$Sex <- as.factor(abalone$Sex)
+
+# Age = Rings + 1.5
+abalone$Age <- abalone$Rings + 1.5
+
+# Check structure
+str(abalone)
+```
+## 2: Visualising the Data
+
+Before building any model, we first need to understand 
+what we are trying to predict. How is Age distributed? 
+Is it balanced or skewed?
+
+```{r age-distribution}
+ggplot(abalone, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "#2E6096", color = "white") +
+  labs(
+    title = "Distribution of Abalone Age",
+    subtitle = "Right skewed with peak at age 10, tail stretching to 24.5 years",
+    x = "Age (years)",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r boxplot-sex}
+ggplot(abalone, aes(x=Sex, y=Age, fill=Sex)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=8, outlier.size=4) +
+  scale_fill_manual(values=c(
+    "F" = "pink",
+    "I" = "lavender",
+    "M" = "skyblue"
+  )) +
+  labs(
+    title="Abalone Age by Sex",
+    subtitle="Males show the highest median age, females the most outliers, and infants the youngest distribution",
+    x="Sex",
+    y="Age (years)"
+  ) +
+  theme_minimal()
+```
+```{r boxplot-Physical measurements}
+library(gridExtra)
+ggplot(abalone, aes(x=Length)) + 
+  geom_histogram(binwidth = 0.001, fill = "#2E6096", color = "white")
+  geom_histogram()
+```
