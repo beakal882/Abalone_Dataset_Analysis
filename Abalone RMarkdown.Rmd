@@ -104,7 +104,13 @@ describe(abalone[, c("Length", "Diameter", "Height",
                       "Whole_weight", "Shucked_weight",
                       "Viscera_weight", "Shell_weight", "Age")])
 ```
-The descriptive statistics confirm the visual observations. Length and Diameter are negatively skewed reflecting that most abalones are fully grown, while Height is strongly positively skewed (3.13) indicating most abalones remain flat with few growing tall. Variables with similar mean and median values suggest symmetric distributions. Age shows the largest standard deviation, suggesting that abalones of similar size can vary considerably in age, highlighting the challenge of accurate age prediction.
+The descriptive statistics confirm the visual observations. Length and Diameter 
+are negatively skewed reflecting that most abalones are fully grown, while 
+Height is strongly positively skewed (3.13) indicating most abalones remain flat
+with few growing tall. Variables with similar mean and median values suggest 
+symmetric distributions. Age shows the largest standard deviation, suggesting 
+that abalones of similar size can vary considerably in age, highlighting the 
+challenge of accurate age prediction.
 
 H0 — "There is no difference in Age between Male, Female and Infant abalones"
 H1 — "There is a significant difference in Age between at least one group"
@@ -128,7 +134,8 @@ cor(abalone[, c("Length", "Diameter", "Height",
                  "Whole_weight", "Shucked_weight",
                  "Viscera_weight", "Shell_weight", "Age")])
 ```
-Shucked weight is the lowest because it represents the soft body meat which varies based on factors other than age such as nutrition and season.
+Shucked weight is the lowest because it represents the soft body meat 
+which varies based on factors other than age such as nutrition and season.
 ```{r correlation-heatmap}
 library(ggplot2)
 library(reshape2)
@@ -848,3 +855,5 @@ applicable to biological age classification in other species.
 For a neurological research context, the same pipeline of 
 feature analysis, model validation, and class balancing is 
 directly transferable to clinical classification tasks.
+
+
