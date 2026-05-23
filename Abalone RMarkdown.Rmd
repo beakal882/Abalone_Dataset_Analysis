@@ -122,3 +122,41 @@ cat("================================\n")
 cat("Conclusion: We reject H0 - significant difference in Age between groups\n")
 ```
 Based on the Kruskal–Wallis test, Sex has a statistically significant effect on Age.
+```{r correlation}
+# Correlation of all numeric variables with Age
+cor(abalone[, c("Length", "Diameter", "Height",
+                 "Whole_weight", "Shucked_weight",
+                 "Viscera_weight", "Shell_weight", "Age")])
+```
+Shucked weight is the lowest because it represents the soft body meat which varies based on factors other than age such as nutrition and season.
+```{r correlation-heatmap}
+library(ggplot2)
+library(reshape2)
+
+# Correlation matrix
+corr_matrix <- cor(abalone[, sapply(abalone, is.numeric)], use = "complete.obs")
+
+# Convert to long format
+corr_long <- melt(corr_matrix)
+
+# Heatmap
+ggplot(corr_long, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 4) +
+  scale_fill_gradient2(
+    low = "#B2182B", mid = "white", high = "#2166AC",
+    midpoint = 0, limit = c(-1, 1), name = "Correlation"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    panel.grid = element_blank(),
+    axis.title = element_blank()
+  ) +
+  coord_fixed() +
+  labs(
+    title = "Correlation Heatmap",
+    subtitle = "Relationships Between Numerical Variables"
+  )
+```
+Shell weight is the strongest predictor of Age, while even the weakest correlation (0.42) suggests all physical measurements carry some predictive value.
