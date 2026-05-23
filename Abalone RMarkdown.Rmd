@@ -483,3 +483,158 @@ predictor across both regression and classification methods.
 These findings motivate the use of K-Fold Cross Validation in 
 Section 8 to confirm model reliability, and SMOTE in Section 9 
 to address class imbalance.
+## 8.1 K-Fold Cross Validation
+
+K-Fold Cross Validation tests whether the model accuracy is 
+reliable or inflated by overfitting. The data is split into 
+10 equal folds. The model trains on 9 folds and tests on 1, 
+repeating 10 times. The final accuracy is the average across 
+all 10 folds.
+
+```{r kfold-output}
+# Extract the best accuracy from cross validation results
+cv_accuracy <- max(rf_cv$results$Accuracy) * 100
+cv_kappa <- max(rf_cv$results$Kappa)
+
+cat("K-Fold Cross Validation Results\n")
+cat("--------------------------------\n")
+cat("Method          : 10-Fold Cross Validation\n")
+cat("Model           : Random Forest\n")
+cat("Number of Trees : 500\n")
+cat("--------------------------------\n")
+cat("CV Accuracy     :", round(cv_accuracy, 2), "%\n")
+cat("Kappa Score     :", round(cv_kappa, 3), "\n")
+cat("--------------------------------\n")
+cat("Original OOB    : 73.69%\n")
+cat("Difference      :", round(cv_accuracy - 73.69, 2), "%\n")
+cat("--------------------------------\n")
+```
+## 8.1 Conclusion — K-Fold Cross Validation
+
+K-Fold Cross Validation confirmed that the Random Forest accuracy 
+of 73.69% is reliable, with cross validated accuracy of 73.52% — 
+a difference of only 0.17%. The Kappa score of 0.524 indicates 
+moderate agreement, suggesting the model performs meaningfully 
+better than chance. However, Old abalones show a classification 
+error of 51.88%, confirming that class imbalance remains the 
+primary limitation to address in Section 9.
+
+## 8.2 Section 8 Summary — K-Fold Cross Validation
+
+**Cross Validation Setup**
+- Method  : 10-Fold Cross Validation
+- Model   : Random Forest
+- Trees   : 500
+
+**Results**
+- Original Accuracy : 73.69%
+- CV Accuracy       : 73.52%
+- Difference        : -0.17%
+- Kappa Score       : 0.524 — moderate agreement
+
+**Key Finding**
+- Difference of 0.17% confirms no overfitting
+- Model genuinely learned patterns in the data
+- Kappa of 0.524 confirms performance above chance
+
+**Remaining Limitation**
+- Old abalone error : 51.88%
+- Cause             : class imbalance
+- Middle dominates  : 56.9% of all observations
+
+**Overall Conclusion**
+
+Cross validation confirmed the Random Forest model is reliable 
+and not overfitting. However, the 51.88% error rate on Old 
+abalones reveals that class imbalance is significantly affecting 
+model performance. Section 9 addresses this directly using SMOTE 
+to balance the classes before retraining.
+## 9.1 SMOTE — Balancing the Classes
+
+The Random Forest model achieved only 48.12% accuracy on Old 
+abalones due to class imbalance. SMOTE creates synthetic 
+observations for the minority classes — Young and Old — until 
+all three groups are balanced. We then retrain the Random Forest 
+on the balanced dataset and compare performance.
+
+```{r smote}
+library(smotefamily)
+
+# model.matrix converts Sex to dummy variables (0/1)
+abalone_numeric <- data.frame(
+  model.matrix(~ Sex - 1, data = abalone),
+  Shell_weight   = abalone$Shell_weight,
+  Length         = abalone$Length,
+  Diameter       = abalone$Diameter,
+  Height         = abalone$Height,
+  Whole_weight   = abalone$Whole_weight,
+  Shucked_weight = abalone$Shucked_weight,
+  Viscera_weight = abalone$Viscera_weight
+)
+
+# Keep Age_Group separate as the target label
+age_group_label <- as.character(abalone$Age_Group)
+
+# Split by class
+young_idx  <- age_group_label == "Young"
+middle_idx <- age_group_label == "Middle"
+old_idx    <- age_group_label == "Old"
+
+young_data  <- abalone_numeric[young_idx,  ]
+middle_data <- abalone_numeric[middle_idx, ]
+old_data    <- abalone_numeric[old_idx,    ]
+
+young_label  <- age_group_label[young_idx]
+old_label    <- age_group_label[old_idx]
+
+# Target size matches Middle
+target <- nrow(middle_data)
+
+# SMOTE Young up to Middle size
+set.seed(42)
+smote_old <- SMOTE(old_data,
+                     old_label,
+                     K = 5,
+                     dup_size = ceiling(target / nrow(old_data)) - 1)
+
+# SMOTE Old up to Middle size
+set.seed(42)
+smote_young <- SMOTE(young_data,
+                   young_label,
+                   K = 5,
+                   dup_size = ceiling(target / nrow(young_data)) - 1)
+
+# Combine all three classes
+abalone_smote <- rbind(
+  smote_young$data,
+  cbind(middle_data, class = "Middle"),
+  smote_old$data
+)
+
+# Set class as factor
+abalone_smote$class <- as.factor(abalone_smote$class)
+
+# Check distribution
+smote_counts <- table(abalone_smote$class)
+smote_pct    <- round(prop.table(smote_counts) * 100, 1)
+
+cat("Class Distribution After SMOTE\n")
+cat("--------------------------------\n")
+cat("Young  :", smote_counts["Young"],
+    "—", smote_pct["Young"],  "%\n")
+cat("Middle :", smote_counts["Middle"],
+    "—", smote_pct["Middle"], "%\n")
+cat("Old    :", smote_counts["Old"],
+    "—", smote_pct["Old"],    "%\n")
+cat("--------------------------------\n")
+cat("Total  :", sum(smote_counts), "observations\n")
+```
+## 9.1 Conclusion — SMOTE
+
+After applying SMOTE, the class distribution improved 
+significantly. Young increased from 839 to 2517, Middle 
+remained at 2378, and Old increased from 960 to 2880. 
+The dataset now contains 7775 total observations, with 
+all three classes in the 30.6 to 37% range. This balanced 
+distribution allows the Random Forest to learn more 
+effectively from Young and Old abalones.
