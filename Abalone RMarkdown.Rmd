@@ -638,3 +638,213 @@ The dataset now contains 7775 total observations, with
 all three classes in the 30.6 to 37% range. This balanced 
 distribution allows the Random Forest to learn more 
 effectively from Young and Old abalones.
+
+## 9.2 Random Forest — Retrained on SMOTE Data
+
+We now retrain the Random Forest on the balanced dataset 
+and compare performance against the original model.
+
+```{r rf-smote}
+# Set seed for reproducibility
+set.seed(42)
+
+# Retrain Random Forest on SMOTE balanced data
+# class is the target variable created by SMOTE
+rf_smote <- randomForest(class ~ SexF + SexI + SexM +
+                           Shell_weight + Length +
+                           Diameter + Height +
+                           Whole_weight + Shucked_weight +
+                           Viscera_weight,
+                         data = abalone_smote,
+                         ntree = 500,
+                         importance = TRUE)
+
+# Clean output
+smote_counts  <- table(abalone_smote$class)
+smote_error   <- rf_smote$confusion[, "class.error"]
+smote_acc     <- round((1 - mean(smote_error)) * 100, 2)
+
+cat("Random Forest — After SMOTE\n")
+cat("--------------------------------\n")
+cat("Number of Trees     :", rf_smote$ntree, "\n")
+cat("--------------------------------\n")
+cat("Error by Age Group\n")
+cat("--------------------------------\n")
+cat("Young  :", round(rf_smote$confusion["Young",  "class.error"] * 100, 2), "%\n")
+cat("Middle :", round(rf_smote$confusion["Middle", "class.error"] * 100, 2), "%\n")
+cat("Old    :", round(rf_smote$confusion["Old",    "class.error"] * 100, 2), "%\n")
+cat("--------------------------------\n")
+cat("OOB Error           :", round(rf_smote$err.rate[500, "OOB"] * 100, 2), "%\n")
+cat("Overall Accuracy    :", round((1 - rf_smote$err.rate[500, "OOB"]) * 100, 2), "%\n")
+cat("--------------------------------\n")
+cat("Comparison\n")
+cat("--------------------------------\n")
+cat("Before SMOTE        : 73.69%\n")
+cat("After SMOTE         :", round((1 - rf_smote$err.rate[500, "OOB"]) * 100, 2), "%\n")
+```
+## 9.2 Conclusion — Random Forest After SMOTE
+
+After retraining on the SMOTE balanced dataset, overall accuracy 
+improved from 73.69% to 85.95% — an increase of 12%. Young 
+abalone error reduced from 27.29% to 5.84%, and Old abalone 
+error reduced dramatically from 51.88% to 8.40%. Middle abalone 
+error increased from 15.64% to 29.56%, reflecting the trade off 
+between class balance and majority class performance. These results 
+confirm that class imbalance was the primary limitation of the 
+original model.
+
+## 9.3 Predicted vs Actual Age Group — After SMOTE
+
+```{r bivariate-smote}
+# Get predictions from the SMOTE retrained model
+abalone_smote$Predicted <- predict(rf_smote, abalone_smote)
+
+# Convert to numeric for scatter plot
+abalone_smote$Actual_num    <- as.numeric(abalone_smote$class)
+abalone_smote$Predicted_num <- as.numeric(abalone_smote$Predicted)
+
+# Plot
+ggplot(abalone_smote, aes(x = Actual_num,
+                           y = Predicted_num,
+                           color = class)) +
+  geom_jitter(alpha = 0.2, size = 1,
+              width = 0.2, height = 0.2) +
+  geom_density_2d(linewidth = 0.6, alpha = 0.8) +
+  scale_color_manual(values = c("Young"  = "#3498DB",
+                                "Middle" = "#27AE60",
+                                "Old"    = "#BDC3C7")) +
+  scale_x_continuous(breaks = c(1, 2, 3),
+                     labels = c("Young", "Middle", "Old")) +
+  scale_y_continuous(breaks = c(1, 2, 3),
+                     labels = c("Young", "Middle", "Old")) +
+  labs(
+    title = "Predicted vs Actual Age Group — After SMOTE",
+    subtitle = "",
+    x = "Actual Age Group",
+    y = "Predicted Age Group",
+    color = "Age Group"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+## 9.3 Conclusion — Predicted vs Actual After SMOTE
+
+The Predicted vs Actual plot confirms that after SMOTE, the 
+Random Forest correctly classifies the majority of Young, Middle, 
+and Old abalones. All three age groups cluster along the diagonal, 
+indicating strong classification performance. Young abalones show 
+some spread in the density contours, suggesting minor 
+misclassification into Middle. Overall the balanced dataset 
+produced by SMOTE allowed the model to learn distinct patterns 
+for each Age Group.
+
+## 9.4 Section 9 Summary — SMOTE and Model Improvement
+
+**Class Distribution — Before vs After SMOTE**
+- Young  : 839  (20.1%) → 2517 (32.4%)
+- Middle : 2378 (56.9%) → 2378 (30.6%)
+- Old    : 960  (23.0%) → 2880 (37.0%)
+- Total  : 4177         → 7775 observations
+
+**Model Performance — Before vs After SMOTE**
+- Overall Accuracy : 73.69% → 85.95% — +12% improvement
+- Young error      : 27.29% → 5.84%  — dramatic improvement
+- Middle error     : 15.64% → 29.56% — trade off cost
+- Old error        : 51.88% → 8.40%  — dramatic improvement
+
+**Key Findings**
+- SMOTE successfully balanced all three age groups
+- Old abalone classification improved by 43.48 percentage points
+- Middle error increase reflects the trade off of balancing
+- Overall accuracy gain confirms SMOTE was effective
+
+**Overall Conclusion**
+
+SMOTE transformed the model performance by addressing class 
+imbalance directly. The most significant improvement was in 
+Old abalone classification, where error dropped from 51.88% 
+to 8.40% — confirming that data imbalance was the primary 
+limitation of the original model. The 12% overall accuracy 
+improvement and balanced class distribution demonstrate that 
+principled resampling techniques produce meaningful gains in 
+biological age classification tasks.
+
+## 10. Overall Project Conclusion
+
+**Research Question**
+
+Can we predict the age of an abalone from its physical 
+measurements without cutting it open?
+
+**Answer**
+
+Yes — with meaningful accuracy. Physical measurements carry 
+sufficient predictive signal to classify abalone age groups, 
+and with balanced training data, the Random Forest model 
+achieves 85.95% accuracy.
+
+**What Each Section Found**
+
+- Section 1 — Data loading and preparation confirmed 4177 
+  observations across 8 physical measurements and 3 sex 
+  categories. Age was derived from Rings + 1.5.
+
+- Section 2 — Age distribution is right skewed, peaking at 
+  10, with a tail extending to 24.5. Sex differences in Age 
+  were visually confirmed through boxplots.
+
+- Section 3 — Descriptive statistics revealed Age has the 
+  largest standard deviation (3.22), indicating high 
+  variability and making prediction challenging.
+
+- Section 4 — Kruskal-Wallis test confirmed Sex has a 
+  statistically significant effect on Age (p < 0.001).
+
+- Section 5 — Correlation heatmap confirmed Shell Weight 
+  as the strongest predictor of Age (r = 0.63). 
+  Multicollinearity was identified among all physical 
+  measurements.
+
+- Section 6 — Simple Linear Regression explained 39% of 
+  Age variation. Multiple Linear Regression improved this 
+  to 54%. Diagnostic plots confirmed non-linearity, 
+  heteroscedasticity, and three influential observations.
+
+- Section 7 — Random Forest classification achieved 73.69% 
+  accuracy. Shell Weight was the most important feature. 
+  Old abalones had the highest error (51.88%) due to class 
+  imbalance.
+
+- Section 8 — K-Fold Cross Validation confirmed the model 
+  is reliable with a cross validated accuracy of 73.52% — 
+  a difference of only 0.17% from the original.
+
+- Section 9 — SMOTE balanced the class distribution and 
+  retraining improved overall accuracy to 85.95%. Old 
+  abalone error dropped from 51.88% to 8.40%.
+
+**Limitations**
+
+- Multicollinearity among physical measurements affects 
+  coefficient interpretation in linear regression
+- The relationship between physical measurements and Age 
+  is non-linear — linear models have a ceiling
+- Middle abalone error increased after SMOTE — a trade off 
+  of class balancing
+- Synthetic observations from SMOTE are not real biological 
+  data points
+
+**Implications for Research**
+
+This project demonstrates that non-invasive physical 
+measurements can reliably classify abalone age groups. 
+The methodology — combining statistical testing, regression 
+analysis, Random Forest classification, cross validation, 
+and SMOTE resampling — provides a replicable framework 
+applicable to biological age classification in other species. 
+For a neurological research context, the same pipeline of 
+feature analysis, model validation, and class balancing is 
+directly transferable to clinical classification tasks.
