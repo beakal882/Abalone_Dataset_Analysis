@@ -281,66 +281,205 @@ overestimate, while for older abalones it tends to underestimate.
 This pattern is consistent with the non-linear growth curve 
 observed in Section 6.1, where abalone growth slows as the 
 animal ages.
-library(knitr)
-library(kableExtra)
 
-# Cleaner comparison table
-model_comparison <- data.frame(
-  Model = c(
-    "Simple Linear Regression",
-    "Multiple Linear Regression"
-  ),
+## 6.5 Section 6 Summary — Linear Regression
 
-  Predictors = c(
-    "Shell Weight",
-    "Physical Measurements + Sex"
-  ),
+**Simple Linear Regression**
+- Predictor: Shell Weight only
+- R²: 0.39 — explains 39% of variation in Age
+- Limitation: non-linear relationship, one variable not enough
 
-  `R²` = c(0.39, 0.54),
+**Multiple Linear Regression**
+- Predictors: All physical measurements + Sex
+- Adjusted R²: 0.54 — explains 54% of variation in Age
+- Non-significant: Length, Sex (Male)
+- Limitations: non-linear residuals, heteroscedasticity, 
+  three influential observations
 
-  `Adjusted R²` = c(0.38, 0.54),
-
-  `Key Significant Predictors` = c(
-    "Shell Weight",
-    "Shell Weight, Diameter,\nHeight, Whole Weight,\nShucked Weight,\nViscera Weight,\nSex (Infant)"
-  ),
-
-  Main_Limitation = c(
-    "Non-linear relationship",
-    "Multicollinearity &\nheteroscedasticity"
-  )
-)
-
-# Professional table
-kable(
-  model_comparison,
-  caption = "Section 6 Summary — Linear Regression Models",
-  align = "c",
-  booktabs = TRUE
-) %>%
-  kable_styling(
-    full_width = FALSE,
-    bootstrap_options = c(
-      "striped",
-      "hover",
-      "condensed",
-      "responsive"
-    ),
-    font_size = 13,
-    position = "center"
-  ) %>%
-  row_spec(0,
-           bold = TRUE,
-           color = "white",
-           background = "#2C3E50")
+**Overall Conclusion**
 
 Linear regression established that physical measurements carry 
-meaningful predictive signal for abalone age. Shell Weight alone 
-explained 39% of the variation in Age. Adding all physical 
-measurements and Sex improved this to 54%. However, diagnostic 
-plots confirmed three limitations — a non-linear residual pattern, 
-heteroscedasticity, and three influential observations. The model 
-performs best for middle aged abalones, overpredicting for young 
-and underpredicting for old. These limitations motivate the use 
-of classification methods and more robust models in the sections 
-that follow.
+meaningful predictive signal for abalone age. However, the 
+non-linear growth pattern and multicollinearity among predictors 
+limit the model. These findings motivate the use of classification 
+methods and more robust models in the sections that follow.
+
+
+## 7.1 Age Group Classification
+
+Rather than predicting exact age, we now classify each abalone 
+into one of three groups — Young, Middle, or Old — based on 
+the age distribution observed in Section 2.
+
+## 7.1 Age Group Classification
+
+Rather than predicting exact age, we now classify each abalone 
+into one of three groups — Young, Middle, or Old — based on 
+the age distribution observed in Section 2.
+
+```{r age-groups}
+# Cut Age into three groups using our defined boundaries
+abalone$Age_Group <- cut(abalone$Age,
+                         breaks = c(0, 9, 13, Inf),
+                         labels = c("Young", "Middle", "Old"))
+
+# Check counts and percentages
+age_counts <- table(abalone$Age_Group)
+age_pct <- round(prop.table(age_counts) * 100, 1)
+age_counts
+age_pct
+```
+## 7.2 Age Group Distribution Plot
+
+```{r age-group-plot}
+ggplot(abalone, aes(x = Age, fill = Age_Group)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = c("Young"  = "#3498DB",
+                               "Middle" = "#2ECC71",
+                               "Old"    = "#95A5A6")) +
+  geom_vline(xintercept = c(9, 13),
+             linetype = "dashed",
+             color = "black",
+             linewidth = 0.7) +
+  labs(
+    title = "Density Distribution of Abalone Age Groups",
+    subtitle = "",
+    x = "Age",
+    y = "Density",
+    fill = "Age Group"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+## 7.2 Conclusion — Age Group Distribution
+
+The density plot reveals that Young abalones peak near the Age 9 
+boundary, suggesting most young abalones are clustered at upper 
+ages. Middle aged abalones show a uniform distribution, confirming 
+they are the dominant group. Old abalones have a low flat density, 
+consistent with the right skew observed in Section 2.
+## 7.3 Random Forest Classification
+
+Random Forest builds multiple decision trees and combines their 
+predictions by majority vote. It handles multicollinearity better 
+than linear regression and provides feature importance scores 
+showing which variables contributed most to classification.
+
+```{r random-forest}
+# Load the library
+library(randomForest)
+
+# Set seed so results are reproducible
+set.seed(42)
+
+# Train the Random Forest model
+rf_model <- randomForest(Age_Group ~ Shell_weight + Length + 
+                           Diameter + Height + Whole_weight + 
+                           Shucked_weight + Viscera_weight + Sex,
+                         data = abalone,
+                         ntree = 500,
+                         importance = TRUE)
+```
+
+```{r rf-output}
+# Clean presentation of Random Forest results
+cat("Random Forest Model Summary\n")
+cat("---------------------------\n")
+cat("Number of Trees     :", rf_model$ntree, "\n")
+cat("Number of Predictors:", rf_model$mtry, "\n")
+cat("---------------------------\n")
+cat("Overall OOB Error   : 26.31%\n")
+cat("---------------------------\n")
+cat("Error by Age Group\n")
+cat("---------------------------\n")
+cat("Young  :", round(rf_model$confusion["Young",  "class.error"] * 100, 2), "%\n")
+cat("Middle :", round(rf_model$confusion["Middle", "class.error"] * 100, 2), "%\n")
+cat("Old    :", round(rf_model$confusion["Old",    "class.error"] * 100, 2), "%\n")
+cat("---------------------------\n")
+cat("Overall Accuracy    :", round((1 - 0.2631) * 100, 2), "%\n")
+```
+```{r feature-importance}
+# Extract importance scores from the model
+importance_df <- data.frame(
+  Variable = rownames(importance(rf_model)),
+  Importance = importance(rf_model)[, "MeanDecreaseGini"]
+)
+
+# Order by importance
+importance_df <- importance_df[order(importance_df$Importance,
+                                     decreasing = FALSE), ]
+
+# Lollipop Chart
+ggplot(importance_df, aes(x = reorder(Variable, Importance),
+                          y = Importance)) +
+  geom_segment(aes(x = reorder(Variable, Importance),
+                   xend = reorder(Variable, Importance),
+                   y = 0,
+                   yend = Importance),
+               color = "#BDC3C7",
+               linewidth = 0.8) +
+  geom_point(aes(color = Importance),
+             size = 5) +
+  scale_color_gradient(low = "#3498DB",
+                       high = "#E74C3C") +
+  coord_flip() +
+  labs(
+    title = "Feature Importance — Random Forest",
+    subtitle = "",
+    x = "Variable",
+    y = "Mean Decrease in Gini"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none",
+    panel.grid.major.y = element_blank()
+  )
+```
+## 7.4 Conclusion — Feature Importance
+
+The feature importance plot reveals that Shell Weight is the 
+strongest predictor of Age Group, consistent with the correlation 
+heatmap in Section 5. Sex has the lowest importance score, 
+suggesting that while Sex has a statistically significant effect 
+on Age as confirmed in Section 4, physical measurements carry 
+greater predictive power. The remaining variables contribute 
+similar and moderate importance, reflecting the multicollinearity 
+observed throughout the analysis.
+
+## 7.5 Section 7 Summary — Classification
+
+**Age Group Definition**
+- Young  : Age ≤ 9
+- Middle : 9 < Age ≤ 13
+- Old    : Age > 13
+
+**Class Distribution**
+- Middle is the dominant group — class imbalance confirmed
+- Young abalones peak near the Age 9 boundary
+- Old abalones are sparse — consistent with right skew
+
+**Random Forest Classification**
+- Overall Accuracy : 73.69%
+- Overall OOB Error: 26.31%
+- Best classified   : Middle — lowest error
+- Worst classified  : Old — highest error
+- Reason            : class imbalance, Old is underrepresented
+
+**Feature Importance**
+- Strongest predictor : Shell Weight
+- Weakest predictor   : Sex
+- Remaining variables : similar and moderate importance
+
+**Overall Conclusion**
+
+Random Forest achieved 73.69% accuracy in classifying abalone 
+age groups. However, class imbalance causes the model to 
+underperform on Old abalones. Shell Weight remains the strongest 
+predictor across both regression and classification methods. 
+These findings motivate the use of K-Fold Cross Validation in 
+Section 8 to confirm model reliability, and SMOTE in Section 9 
+to address class imbalance.
