@@ -87,5 +87,38 @@ ggpairs(abalone,
                     "Whole_weight", "Shucked_weight",
                     "Viscera_weight", "Shell_weight"),
         aes(color = Sex, alpha = 0.5)) +
+  labs(
+    title = "Pairwise Plot of Physical Measurements",
+    subtitle = "Male and Female (Left skewed) and Infant (Symmetric), all are highly correlated"
+  ) +
   theme_minimal()
 ```
+**Observation:** Male and Female distributions are left skewed 
+while Infant is symmetric. All physical measurements are highly 
+correlated, indicating multicollinearity.
+```{r descriptive-stats}
+library(psych)
+
+# Descriptive statistics for all numeric columns
+describe(abalone[, c("Length", "Diameter", "Height",
+                      "Whole_weight", "Shucked_weight",
+                      "Viscera_weight", "Shell_weight", "Age")])
+```
+The descriptive statistics confirm the visual observations. Length and Diameter are negatively skewed reflecting that most abalones are fully grown, while Height is strongly positively skewed (3.13) indicating most abalones remain flat with few growing tall. Variables with similar mean and median values suggest symmetric distributions. Age shows the largest standard deviation, suggesting that abalones of similar size can vary considerably in age, highlighting the challenge of accurate age prediction.
+
+H0 — "There is no difference in Age between Male, Female and Infant abalones"
+H1 — "There is a significant difference in Age between at least one group"
+```{r hypothesis-testing}
+# Kruskal-Wallis test - comparing Age across Sex groups
+result <- kruskal.test(Age ~ Sex, data = abalone)
+
+# Clean output
+cat("Kruskal-Wallis Test: Age by Sex\n")
+cat("================================\n")
+cat("Chi-squared:", round(result$statistic, 3), "\n")
+cat("Degrees of freedom:", result$parameter, "\n")
+cat("P-value:", format(result$p.value, scientific = TRUE), "\n")
+cat("================================\n")
+cat("Conclusion: We reject H0 - significant difference in Age between groups\n")
+```
+Based on the Kruskal–Wallis test, Sex has a statistically significant effect on Age.
