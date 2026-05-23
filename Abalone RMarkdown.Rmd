@@ -10,7 +10,7 @@ In this project, we ask:
 **Can we predict the age of an abalone from its physical 
 measurements, without cutting it open?**
 
-An abalone is a sea snail.A marine shellfish found in cold coastal
+An abalone is a sea snail. A marine shellfish found in cold coastal
 waters around the world. It is considered a delicacy in many countries, 
 especially in East Asia, and is commercially farmed and harvested.
 
@@ -79,9 +79,13 @@ ggplot(abalone, aes(x=Sex, y=Age, fill=Sex)) +
   ) +
   theme_minimal()
 ```
-```{r boxplot-Physical measurements}
-library(gridExtra)
-ggplot(abalone, aes(x=Length)) + 
-  geom_histogram(binwidth = 0.001, fill = "#2E6096", color = "white")
-  geom_histogram()
+```{r pairwise-plot}
+library(GGally)
+
+ggpairs(abalone, 
+        columns = c("Length", "Diameter", "Height",
+                    "Whole_weight", "Shucked_weight",
+                    "Viscera_weight", "Shell_weight"),
+        aes(color = Sex, alpha = 0.5)) +
+  theme_minimal()
 ```
