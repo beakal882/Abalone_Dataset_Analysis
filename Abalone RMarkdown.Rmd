@@ -160,3 +160,187 @@ ggplot(corr_long, aes(Var1, Var2, fill = value)) +
   )
 ```
 Shell weight is the strongest predictor of Age, while even the weakest correlation (0.42) suggests all physical measurements carry some predictive value.
+```{r simple-regression}
+# Simple Linear Regression - Age predicted by Shell weight
+simple_model <- lm(Age ~ Shell_weight, data = abalone)
+summary(simple_model)
+```
+```{r simple-regression-plot}
+ggplot(abalone, aes(x=Shell_weight, y=Age)) +
+  geom_point(alpha=0.3, color="#2E6096") +
+  geom_smooth(method="lm", color="red", se=TRUE) +
+  labs(
+    title="Simple Linear Regression: Age ~ Shell Weight",
+    x="Shell Weight",
+    y="Age (years)"
+  ) +
+  theme_minimal()
+```
+he simple linear regression model using Shell Weight as the sole predictor produced an R² of 0.39, meaning the model explains only 39% of the variation in Age. The scatter plot revealed a non-linear pattern, suggesting the relationship is significant but not perfectly linear. This indicates that one variable is not sufficient, and motivates the use of Multiple Linear Regression.
+## 6.2 Multiple Linear Regression — All Predictors
+
+We now build a model using all physical measurements plus Sex 
+as predictors. The goal is to test whether combining variables 
+improves prediction over Shell Weight alone.
+
+```{r mlr-model}
+# Build the full multiple linear regression model
+# We list every predictor explicitly so it is clear what goes in
+
+mlr_model <- lm(Age ~ Shell_weight + Length + Diameter + Height +
+                  Whole_weight + Shucked_weight + Viscera_weight + Sex,
+                data = abalone)
+
+# Print the summary — R², p-values, and coefficients
+summary(mlr_model)
+```
+## 6.2 Conclusion — Multiple Linear Regression
+
+The multiple linear regression model produced an Adjusted R² of 0.54, 
+explaining 54% of the variation in Age — an improvement over the simple 
+model. However, **Length** and **Sex (Male)** were not statistically 
+significant. The negative coefficient on Shucked Weight suggests 
+multicollinearity is affecting the model, consistent with the 
+correlations observed in Section 5.
+## 6.3 Model Diagnostics
+
+Before trusting any regression model, we check four diagnostic 
+plots. These tell us whether the assumptions of linear regression 
+are being met.
+
+```{r mlr-diagnostics}
+# Set 2x2 layout
+par(mfrow = c(2, 2))
+
+# Plot 1 — Residuals vs Fitted
+plot(mlr_model, which = 1,
+     col = "#E74C3C",
+     pch = 19,
+     main = "Residuals vs Fitted")
+
+# Plot 2 — Q-Q Plot
+plot(mlr_model, which = 2,
+     col = "#2ECC71",
+     pch = 19,
+     main = "Normal Q-Q")
+
+# Plot 3 — Scale-Location
+plot(mlr_model, which = 3,
+     col = "#3498DB",
+     pch = 19,
+     main = "Scale-Location")
+
+# Plot 4 — Residuals vs Leverage
+plot(mlr_model, which = 4,
+     col = "#9B59B6",
+     pch = 19,
+     main = "Residuals vs Leverage")
+
+# Reset layout
+par(mfrow = c(1, 1))
+```
+## 6.3 Conclusion — Model Diagnostics
+
+The diagnostic plots reveal that the residuals show a non-linear 
+pattern, confirming the relationship is not perfectly linear. 
+The Q-Q plot suggests residuals are approximately normal, with 
+slight deviation at the tails. The Scale-Location plot indicates 
+heteroscedasticity, meaning the model makes larger errors for some 
+predicted values. Three influential observations were identified 
+in the Residuals vs Leverage plot, which may be affecting the 
+model coefficients.
+## 6.4 Predicted vs Actual Age
+
+We now compare what the model predicted against the actual 
+known ages. If the model were perfect, every point would 
+fall exactly on the diagonal line.
+
+```{r predicted-vs-actual}
+# Add predictions from our MLR model back into the dataset
+abalone$Predicted_Age <- predict(mlr_model, abalone)
+
+# Plot Predicted vs Actual
+ggplot(abalone, aes(x = Age, y = Predicted_Age)) +
+  geom_point(alpha = 0.3, color = "#3498DB") +
+  geom_abline(intercept = 0, slope = 1,
+              color = "#E74C3C",
+              linewidth = 1,
+              linetype = "dashed") +
+  labs(
+    title = "Predicted vs Actual Age — Multiple Linear Regression",
+    x = "Actual Age",
+    y = "Predicted Age"
+  ) +
+  theme_minimal()
+```
+## 6.4 Conclusion — Predicted vs Actual Age
+
+The Predicted vs Actual plot shows the model performs best for 
+middle aged abalones. For young abalones the model tends to 
+overestimate, while for older abalones it tends to underestimate. 
+This pattern is consistent with the non-linear growth curve 
+observed in Section 6.1, where abalone growth slows as the 
+animal ages.
+library(knitr)
+library(kableExtra)
+
+# Cleaner comparison table
+model_comparison <- data.frame(
+  Model = c(
+    "Simple Linear Regression",
+    "Multiple Linear Regression"
+  ),
+
+  Predictors = c(
+    "Shell Weight",
+    "Physical Measurements + Sex"
+  ),
+
+  `R²` = c(0.39, 0.54),
+
+  `Adjusted R²` = c(0.38, 0.54),
+
+  `Key Significant Predictors` = c(
+    "Shell Weight",
+    "Shell Weight, Diameter,\nHeight, Whole Weight,\nShucked Weight,\nViscera Weight,\nSex (Infant)"
+  ),
+
+  Main_Limitation = c(
+    "Non-linear relationship",
+    "Multicollinearity &\nheteroscedasticity"
+  )
+)
+
+# Professional table
+kable(
+  model_comparison,
+  caption = "Section 6 Summary — Linear Regression Models",
+  align = "c",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c(
+      "striped",
+      "hover",
+      "condensed",
+      "responsive"
+    ),
+    font_size = 13,
+    position = "center"
+  ) %>%
+  row_spec(0,
+           bold = TRUE,
+           color = "white",
+           background = "#2C3E50")
+
+Linear regression established that physical measurements carry 
+meaningful predictive signal for abalone age. Shell Weight alone 
+explained 39% of the variation in Age. Adding all physical 
+measurements and Sex improved this to 54%. However, diagnostic 
+plots confirmed three limitations — a non-linear residual pattern, 
+heteroscedasticity, and three influential observations. The model 
+performs best for middle aged abalones, overpredicting for young 
+and underpredicting for old. These limitations motivate the use 
+of classification methods and more robust models in the sections 
+that follow.
