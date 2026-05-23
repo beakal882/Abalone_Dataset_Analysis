@@ -2,9 +2,14 @@
 title: "Can We Predict Abalone Age Without Cutting It Open?"
 author: "Beakale Amenu Tefera"
 date: "2026"
-output: html_document
+output: pdf_document
 ---
-## 1: Introduction & Data Loading
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## 1. Introduction & Data Loading
 
 In this project, we ask:
 **Can we predict the age of an abalone from its physical 
@@ -18,18 +23,13 @@ Normally, age is determined by cutting the shell and counting
 rings under a microscope. This project explores whether machine 
 learning can replace that process using only external measurements.
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-```
-
 ```{r load-data}
 # Load libraries
 library(ggplot2)
 library(dplyr)
 
 # Load the dataset
-abalone <- read.csv("/home/beakale/Desktop/Projects/abalone_project/abalone.data", 
-                    header = FALSE)
+abalone <- read.csv("abalone.data", header = FALSE)
 
 # Assign column names
 colnames(abalone) <- c("Sex", "Length", "Diameter", "Height",
@@ -45,7 +45,8 @@ abalone$Age <- abalone$Rings + 1.5
 # Check structure
 str(abalone)
 ```
-## 2: Visualising the Data
+
+## 2. Visualising the Data
 
 Before building any model, we first need to understand 
 what we are trying to predict. How is Age distributed? 
@@ -64,21 +65,22 @@ ggplot(abalone, aes(x = Age)) +
 ```
 
 ```{r boxplot-sex}
-ggplot(abalone, aes(x=Sex, y=Age, fill=Sex)) + 
-  geom_boxplot(outlier.colour="red", outlier.shape=8, outlier.size=4) +
-  scale_fill_manual(values=c(
+ggplot(abalone, aes(x = Sex, y = Age, fill = Sex)) + 
+  geom_boxplot(outlier.colour = "red", outlier.shape = 8, outlier.size = 4) +
+  scale_fill_manual(values = c(
     "F" = "pink",
     "I" = "lavender",
     "M" = "skyblue"
   )) +
   labs(
-    title="Abalone Age by Sex",
-    subtitle="Males show the highest median age, females the most outliers, and infants the youngest distribution",
-    x="Sex",
-    y="Age (years)"
+    title = "Abalone Age by Sex",
+    subtitle = "Males show the highest median age, females the most outliers, and infants the youngest distribution",
+    x = "Sex",
+    y = "Age (years)"
   ) +
   theme_minimal()
 ```
+
 ```{r pairwise-plot}
 library(GGally)
 
@@ -89,13 +91,17 @@ ggpairs(abalone,
         aes(color = Sex, alpha = 0.5)) +
   labs(
     title = "Pairwise Plot of Physical Measurements",
-    subtitle = "Male and Female (Left skewed) and Infant (Symmetric), all are highly correlated"
+    subtitle = "Male and Female (left skewed) and Infant (symmetric), all are highly correlated"
   ) +
   theme_minimal()
 ```
+
 **Observation:** Male and Female distributions are left skewed 
 while Infant is symmetric. All physical measurements are highly 
 correlated, indicating multicollinearity.
+
+## 3. Descriptive Statistics
+
 ```{r descriptive-stats}
 library(psych)
 
@@ -104,18 +110,25 @@ describe(abalone[, c("Length", "Diameter", "Height",
                       "Whole_weight", "Shucked_weight",
                       "Viscera_weight", "Shell_weight", "Age")])
 ```
-The descriptive statistics confirm the visual observations. Length and Diameter 
-are negatively skewed reflecting that most abalones are fully grown, while 
-Height is strongly positively skewed (3.13) indicating most abalones remain flat
-with few growing tall. Variables with similar mean and median values suggest 
-symmetric distributions. Age shows the largest standard deviation, suggesting 
-that abalones of similar size can vary considerably in age, highlighting the 
-challenge of accurate age prediction.
 
-H0 — "There is no difference in Age between Male, Female and Infant abalones"
-H1 — "There is a significant difference in Age between at least one group"
+The descriptive statistics confirm the visual observations. 
+Length and Diameter are negatively skewed reflecting that most 
+abalones are fully grown, while Height is strongly positively 
+skewed (3.13) indicating most abalones remain flat with few 
+growing tall. Variables with similar mean and median values 
+suggest symmetric distributions. Age shows the largest standard 
+deviation, suggesting that abalones of similar size can vary 
+considerably in age, highlighting the challenge of accurate 
+age prediction.
+
+## 4. Hypothesis Testing
+
+H0 — There is no difference in Age between Male, Female and Infant abalones
+
+H1 — There is a significant difference in Age between at least one group
+
 ```{r hypothesis-testing}
-# Kruskal-Wallis test - comparing Age across Sex groups
+# Kruskal-Wallis test — comparing Age across Sex groups
 result <- kruskal.test(Age ~ Sex, data = abalone)
 
 # Clean output
@@ -127,21 +140,31 @@ cat("P-value:", format(result$p.value, scientific = TRUE), "\n")
 cat("================================\n")
 cat("Conclusion: We reject H0 - significant difference in Age between groups\n")
 ```
-Based on the Kruskal–Wallis test, Sex has a statistically significant effect on Age.
+
+Based on the Kruskal-Wallis test, Sex has a statistically 
+significant effect on Age (p < 0.001). We reject the null 
+hypothesis and conclude that at least one Sex group differs 
+significantly in Age.
+
+## 5. Correlation Analysis
+
 ```{r correlation}
 # Correlation of all numeric variables with Age
 cor(abalone[, c("Length", "Diameter", "Height",
                  "Whole_weight", "Shucked_weight",
                  "Viscera_weight", "Shell_weight", "Age")])
 ```
-Shucked weight is the lowest because it represents the soft body meat 
-which varies based on factors other than age such as nutrition and season.
+
+Shucked weight is the lowest because it represents the soft 
+body meat which varies based on factors other than age such 
+as nutrition and season.
+
 ```{r correlation-heatmap}
-library(ggplot2)
 library(reshape2)
 
 # Correlation matrix
-corr_matrix <- cor(abalone[, sapply(abalone, is.numeric)], use = "complete.obs")
+corr_matrix <- cor(abalone[, sapply(abalone, is.numeric)], 
+                   use = "complete.obs")
 
 # Convert to long format
 corr_long <- melt(corr_matrix)
@@ -163,27 +186,44 @@ ggplot(corr_long, aes(Var1, Var2, fill = value)) +
   coord_fixed() +
   labs(
     title = "Correlation Heatmap",
-    subtitle = "Relationships Between Numerical Variables"
+    subtitle = "Shell Weight is the strongest predictor of Age (r = 0.63)"
   )
 ```
-Shell weight is the strongest predictor of Age, while even the weakest correlation (0.42) suggests all physical measurements carry some predictive value.
+
+Shell weight is the strongest predictor of Age, while even 
+the weakest correlation (0.42) suggests all physical 
+measurements carry some predictive value.
+
+## 6.1 Simple Linear Regression
+
 ```{r simple-regression}
-# Simple Linear Regression - Age predicted by Shell weight
+# Simple Linear Regression — Age predicted by Shell Weight
 simple_model <- lm(Age ~ Shell_weight, data = abalone)
 summary(simple_model)
 ```
+
 ```{r simple-regression-plot}
-ggplot(abalone, aes(x=Shell_weight, y=Age)) +
-  geom_point(alpha=0.3, color="#2E6096") +
-  geom_smooth(method="lm", color="red", se=TRUE) +
+ggplot(abalone, aes(x = Shell_weight, y = Age)) +
+  geom_point(alpha = 0.3, color = "#2E6096") +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
   labs(
-    title="Simple Linear Regression: Age ~ Shell Weight",
-    x="Shell Weight",
-    y="Age (years)"
+    title = "Simple Linear Regression: Age ~ Shell Weight",
+    subtitle = "R² = 0.39 — non-linear curve visible, one variable is not sufficient",
+    x = "Shell Weight",
+    y = "Age (years)"
   ) +
   theme_minimal()
 ```
-he simple linear regression model using Shell Weight as the sole predictor produced an R² of 0.39, meaning the model explains only 39% of the variation in Age. The scatter plot revealed a non-linear pattern, suggesting the relationship is significant but not perfectly linear. This indicates that one variable is not sufficient, and motivates the use of Multiple Linear Regression.
+
+## 6.1 Conclusion — Simple Linear Regression
+
+The simple linear regression model using Shell Weight as the sole 
+predictor produced an R² of 0.39, meaning the model explains only 
+**39%** of the variation in Age. The scatter plot revealed a 
+non-linear pattern, suggesting the relationship is significant 
+but not perfectly linear. This indicates that one variable is 
+not sufficient, and motivates the use of Multiple Linear Regression.
+
 ## 6.2 Multiple Linear Regression — All Predictors
 
 We now build a model using all physical measurements plus Sex 
@@ -193,7 +233,6 @@ improves prediction over Shell Weight alone.
 ```{r mlr-model}
 # Build the full multiple linear regression model
 # We list every predictor explicitly so it is clear what goes in
-
 mlr_model <- lm(Age ~ Shell_weight + Length + Diameter + Height +
                   Whole_weight + Shucked_weight + Viscera_weight + Sex,
                 data = abalone)
@@ -201,6 +240,7 @@ mlr_model <- lm(Age ~ Shell_weight + Length + Diameter + Height +
 # Print the summary — R², p-values, and coefficients
 summary(mlr_model)
 ```
+
 ## 6.2 Conclusion — Multiple Linear Regression
 
 The multiple linear regression model produced an Adjusted R² of 0.54, 
@@ -209,6 +249,7 @@ model. However, **Length** and **Sex (Male)** were not statistically
 significant. The negative coefficient on Shucked Weight suggests 
 multicollinearity is affecting the model, consistent with the 
 correlations observed in Section 5.
+
 ## 6.3 Model Diagnostics
 
 Before trusting any regression model, we check four diagnostic 
@@ -246,6 +287,7 @@ plot(mlr_model, which = 4,
 # Reset layout
 par(mfrow = c(1, 1))
 ```
+
 ## 6.3 Conclusion — Model Diagnostics
 
 The diagnostic plots reveal that the residuals show a non-linear 
@@ -256,6 +298,7 @@ heteroscedasticity, meaning the model makes larger errors for some
 predicted values. Three influential observations were identified 
 in the Residuals vs Leverage plot, which may be affecting the 
 model coefficients.
+
 ## 6.4 Predicted vs Actual Age
 
 We now compare what the model predicted against the actual 
@@ -275,11 +318,13 @@ ggplot(abalone, aes(x = Age, y = Predicted_Age)) +
               linetype = "dashed") +
   labs(
     title = "Predicted vs Actual Age — Multiple Linear Regression",
+    subtitle = "Model performs best for middle aged abalones — overpredicts young, underpredicts old",
     x = "Actual Age",
     y = "Predicted Age"
   ) +
   theme_minimal()
 ```
+
 ## 6.4 Conclusion — Predicted vs Actual Age
 
 The Predicted vs Actual plot shows the model performs best for 
@@ -311,13 +356,6 @@ non-linear growth pattern and multicollinearity among predictors
 limit the model. These findings motivate the use of classification 
 methods and more robust models in the sections that follow.
 
-
-## 7.1 Age Group Classification
-
-Rather than predicting exact age, we now classify each abalone 
-into one of three groups — Young, Middle, or Old — based on 
-the age distribution observed in Section 2.
-
 ## 7.1 Age Group Classification
 
 Rather than predicting exact age, we now classify each abalone 
@@ -332,17 +370,24 @@ abalone$Age_Group <- cut(abalone$Age,
 
 # Check counts and percentages
 age_counts <- table(abalone$Age_Group)
-age_pct <- round(prop.table(age_counts) * 100, 1)
-age_counts
-age_pct
+age_pct    <- round(prop.table(age_counts) * 100, 1)
+
+cat("Age Group Distribution\n")
+cat("----------------------\n")
+cat("Young  :", age_counts["Young"],  "—", age_pct["Young"],  "%\n")
+cat("Middle :", age_counts["Middle"], "—", age_pct["Middle"], "%\n")
+cat("Old    :", age_counts["Old"],    "—", age_pct["Old"],    "%\n")
+cat("----------------------\n")
+cat("Total  :", sum(age_counts), "abalones\n")
 ```
+
 ## 7.2 Age Group Distribution Plot
 
 ```{r age-group-plot}
 ggplot(abalone, aes(x = Age, fill = Age_Group)) +
   geom_density(alpha = 0.6) +
   scale_fill_manual(values = c("Young"  = "#3498DB",
-                               "Middle" = "#2ECC71",
+                               "Middle" = "#27AE60",
                                "Old"    = "#95A5A6")) +
   geom_vline(xintercept = c(9, 13),
              linetype = "dashed",
@@ -350,7 +395,7 @@ ggplot(abalone, aes(x = Age, fill = Age_Group)) +
              linewidth = 0.7) +
   labs(
     title = "Density Distribution of Abalone Age Groups",
-    subtitle = "",
+    subtitle = "Young peaks near boundary, Middle dominates, Old is sparse and flat",
     x = "Age",
     y = "Density",
     fill = "Age Group"
@@ -361,6 +406,7 @@ ggplot(abalone, aes(x = Age, fill = Age_Group)) +
     legend.position = "bottom"
   )
 ```
+
 ## 7.2 Conclusion — Age Group Distribution
 
 The density plot reveals that Young abalones peak near the Age 9 
@@ -368,6 +414,7 @@ boundary, suggesting most young abalones are clustered at upper
 ages. Middle aged abalones show a uniform distribution, confirming 
 they are the dominant group. Old abalones have a low flat density, 
 consistent with the right skew observed in Section 2.
+
 ## 7.3 Random Forest Classification
 
 Random Forest builds multiple decision trees and combines their 
@@ -376,7 +423,6 @@ than linear regression and provides feature importance scores
 showing which variables contributed most to classification.
 
 ```{r random-forest}
-# Load the library
 library(randomForest)
 
 # Set seed so results are reproducible
@@ -398,44 +444,53 @@ cat("---------------------------\n")
 cat("Number of Trees     :", rf_model$ntree, "\n")
 cat("Number of Predictors:", rf_model$mtry, "\n")
 cat("---------------------------\n")
-cat("Overall OOB Error   : 26.31%\n")
-cat("---------------------------\n")
 cat("Error by Age Group\n")
 cat("---------------------------\n")
 cat("Young  :", round(rf_model$confusion["Young",  "class.error"] * 100, 2), "%\n")
 cat("Middle :", round(rf_model$confusion["Middle", "class.error"] * 100, 2), "%\n")
 cat("Old    :", round(rf_model$confusion["Old",    "class.error"] * 100, 2), "%\n")
 cat("---------------------------\n")
-cat("Overall Accuracy    :", round((1 - 0.2631) * 100, 2), "%\n")
+cat("Overall OOB Error   :", round(rf_model$err.rate[500, "OOB"] * 100, 2), "%\n")
+cat("Overall Accuracy    :", round((1 - rf_model$err.rate[500, "OOB"]) * 100, 2), "%\n")
 ```
+
+## 7.3 Conclusion — Random Forest Classification
+
+The Random Forest model achieved an overall accuracy of 73.69%. 
+Middle abalones were classified with the lowest error, benefiting 
+from the largest class size. Old abalones showed the highest error 
+at 51.88%, directly caused by class imbalance — Middle dominates 
+at 56.9% of all observations. This confirms that class imbalance 
+is the primary limitation to address.
+
+## 7.4 Feature Importance
+
 ```{r feature-importance}
 # Extract importance scores from the model
 importance_df <- data.frame(
-  Variable = rownames(importance(rf_model)),
+  Variable   = rownames(importance(rf_model)),
   Importance = importance(rf_model)[, "MeanDecreaseGini"]
 )
 
-# Order by importance
+# Order by importance — lowest at top for coord_flip
 importance_df <- importance_df[order(importance_df$Importance,
                                      decreasing = FALSE), ]
 
 # Lollipop Chart
 ggplot(importance_df, aes(x = reorder(Variable, Importance),
                           y = Importance)) +
-  geom_segment(aes(x = reorder(Variable, Importance),
+  geom_segment(aes(x    = reorder(Variable, Importance),
                    xend = reorder(Variable, Importance),
-                   y = 0,
+                   y    = 0,
                    yend = Importance),
                color = "#BDC3C7",
                linewidth = 0.8) +
-  geom_point(aes(color = Importance),
-             size = 5) +
-  scale_color_gradient(low = "#3498DB",
-                       high = "#E74C3C") +
+  geom_point(aes(color = Importance), size = 5) +
+  scale_color_gradient(low = "#3498DB", high = "#E74C3C") +
   coord_flip() +
   labs(
-    title = "Feature Importance — Random Forest",
-    subtitle = "",
+    title    = "Feature Importance — Random Forest",
+    subtitle = "Shell Weight is the strongest predictor — Sex carries the least importance",
     x = "Variable",
     y = "Mean Decrease in Gini"
   ) +
@@ -446,6 +501,7 @@ ggplot(importance_df, aes(x = reorder(Variable, Importance),
     panel.grid.major.y = element_blank()
   )
 ```
+
 ## 7.4 Conclusion — Feature Importance
 
 The feature importance plot reveals that Shell Weight is the 
@@ -472,9 +528,9 @@ observed throughout the analysis.
 **Random Forest Classification**
 - Overall Accuracy : 73.69%
 - Overall OOB Error: 26.31%
-- Best classified   : Middle — lowest error
-- Worst classified  : Old — highest error
-- Reason            : class imbalance, Old is underrepresented
+- Best classified  : Middle — lowest error
+- Worst classified : Old — highest error (51.88%)
+- Reason           : class imbalance, Old is underrepresented
 
 **Feature Importance**
 - Strongest predictor : Shell Weight
@@ -490,6 +546,7 @@ predictor across both regression and classification methods.
 These findings motivate the use of K-Fold Cross Validation in 
 Section 8 to confirm model reliability, and SMOTE in Section 9 
 to address class imbalance.
+
 ## 8.1 K-Fold Cross Validation
 
 K-Fold Cross Validation tests whether the model accuracy is 
@@ -498,10 +555,30 @@ reliable or inflated by overfitting. The data is split into
 repeating 10 times. The final accuracy is the average across 
 all 10 folds.
 
+```{r kfold}
+library(caret)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Define 10-fold cross validation
+train_control <- trainControl(method = "cv",
+                              number = 10)
+
+# Train Random Forest with cross validation
+rf_cv <- train(Age_Group ~ Shell_weight + Length +
+                 Diameter + Height + Whole_weight +
+                 Shucked_weight + Viscera_weight + Sex,
+               data    = abalone,
+               method  = "rf",
+               trControl = train_control,
+               ntree   = 500)
+```
+
 ```{r kfold-output}
 # Extract the best accuracy from cross validation results
 cv_accuracy <- max(rf_cv$results$Accuracy) * 100
-cv_kappa <- max(rf_cv$results$Kappa)
+cv_kappa    <- max(rf_cv$results$Kappa)
 
 cat("K-Fold Cross Validation Results\n")
 cat("--------------------------------\n")
@@ -516,6 +593,7 @@ cat("Original OOB    : 73.69%\n")
 cat("Difference      :", round(cv_accuracy - 73.69, 2), "%\n")
 cat("--------------------------------\n")
 ```
+
 ## 8.1 Conclusion — K-Fold Cross Validation
 
 K-Fold Cross Validation confirmed that the Random Forest accuracy 
@@ -556,6 +634,7 @@ and not overfitting. However, the 51.88% error rate on Old
 abalones reveals that class imbalance is significantly affecting 
 model performance. Section 9 addresses this directly using SMOTE 
 to balance the classes before retraining.
+
 ## 9.1 SMOTE — Balancing the Classes
 
 The Random Forest model achieved only 48.12% accuracy on Old 
@@ -567,6 +646,7 @@ on the balanced dataset and compare performance.
 ```{r smote}
 library(smotefamily)
 
+# Create fully numeric dataset
 # model.matrix converts Sex to dummy variables (0/1)
 abalone_numeric <- data.frame(
   model.matrix(~ Sex - 1, data = abalone),
@@ -591,27 +671,27 @@ young_data  <- abalone_numeric[young_idx,  ]
 middle_data <- abalone_numeric[middle_idx, ]
 old_data    <- abalone_numeric[old_idx,    ]
 
-young_label  <- age_group_label[young_idx]
-old_label    <- age_group_label[old_idx]
+young_label <- age_group_label[young_idx]
+old_label   <- age_group_label[old_idx]
 
 # Target size matches Middle
 target <- nrow(middle_data)
 
 # SMOTE Young up to Middle size
 set.seed(42)
-smote_old <- SMOTE(old_data,
-                     old_label,
+smote_young <- SMOTE(young_data,
+                     young_label,
                      K = 5,
-                     dup_size = ceiling(target / nrow(old_data)) - 1)
+                     dup_size = ceiling(target / nrow(young_data)) - 1)
 
 # SMOTE Old up to Middle size
 set.seed(42)
-smote_young <- SMOTE(young_data,
-                   young_label,
+smote_old <- SMOTE(old_data,
+                   old_label,
                    K = 5,
-                   dup_size = ceiling(target / nrow(young_data)) - 1)
+                   dup_size = ceiling(target / nrow(old_data)) - 1)
 
-# Combine all three classes
+# Combine all three balanced classes
 abalone_smote <- rbind(
   smote_young$data,
   cbind(middle_data, class = "Middle"),
@@ -636,6 +716,7 @@ cat("Old    :", smote_counts["Old"],
 cat("--------------------------------\n")
 cat("Total  :", sum(smote_counts), "observations\n")
 ```
+
 ## 9.1 Conclusion — SMOTE
 
 After applying SMOTE, the class distribution improved 
@@ -656,20 +737,14 @@ and compare performance against the original model.
 set.seed(42)
 
 # Retrain Random Forest on SMOTE balanced data
-# class is the target variable created by SMOTE
 rf_smote <- randomForest(class ~ SexF + SexI + SexM +
                            Shell_weight + Length +
                            Diameter + Height +
                            Whole_weight + Shucked_weight +
                            Viscera_weight,
-                         data = abalone_smote,
+                         data  = abalone_smote,
                          ntree = 500,
                          importance = TRUE)
-
-# Clean output
-smote_counts  <- table(abalone_smote$class)
-smote_error   <- rf_smote$confusion[, "class.error"]
-smote_acc     <- round((1 - mean(smote_error)) * 100, 2)
 
 cat("Random Forest — After SMOTE\n")
 cat("--------------------------------\n")
@@ -689,6 +764,7 @@ cat("--------------------------------\n")
 cat("Before SMOTE        : 73.69%\n")
 cat("After SMOTE         :", round((1 - rf_smote$err.rate[500, "OOB"]) * 100, 2), "%\n")
 ```
+
 ## 9.2 Conclusion — Random Forest After SMOTE
 
 After retraining on the SMOTE balanced dataset, overall accuracy 
@@ -719,16 +795,16 @@ ggplot(abalone_smote, aes(x = Actual_num,
   geom_density_2d(linewidth = 0.6, alpha = 0.8) +
   scale_color_manual(values = c("Young"  = "#3498DB",
                                 "Middle" = "#27AE60",
-                                "Old"    = "#BDC3C7")) +
+                                "Old"    = "#95A5A6")) +
   scale_x_continuous(breaks = c(1, 2, 3),
                      labels = c("Young", "Middle", "Old")) +
   scale_y_continuous(breaks = c(1, 2, 3),
                      labels = c("Young", "Middle", "Old")) +
   labs(
-    title = "Predicted vs Actual Age Group — After SMOTE",
-    subtitle = "",
-    x = "Actual Age Group",
-    y = "Predicted Age Group",
+    title    = "Predicted vs Actual Age Group — After SMOTE",
+    subtitle = "All three groups cluster on the diagonal — strong classification after balancing",
+    x     = "Actual Age Group",
+    y     = "Predicted Age Group",
     color = "Age Group"
   ) +
   theme_minimal(base_size = 13) +
@@ -737,6 +813,7 @@ ggplot(abalone_smote, aes(x = Actual_num,
     legend.position = "bottom"
   )
 ```
+
 ## 9.3 Conclusion — Predicted vs Actual After SMOTE
 
 The Predicted vs Actual plot confirms that after SMOTE, the 
@@ -795,41 +872,41 @@ achieves 85.95% accuracy.
 
 **What Each Section Found**
 
-- Section 1 — Data loading and preparation confirmed 4177 
+- Section 1  — Data loading and preparation confirmed 4177 
   observations across 8 physical measurements and 3 sex 
   categories. Age was derived from Rings + 1.5.
 
-- Section 2 — Age distribution is right skewed, peaking at 
+- Section 2  — Age distribution is right skewed, peaking at 
   10, with a tail extending to 24.5. Sex differences in Age 
   were visually confirmed through boxplots.
 
-- Section 3 — Descriptive statistics revealed Age has the 
+- Section 3  — Descriptive statistics revealed Age has the 
   largest standard deviation (3.22), indicating high 
   variability and making prediction challenging.
 
-- Section 4 — Kruskal-Wallis test confirmed Sex has a 
+- Section 4  — Kruskal-Wallis test confirmed Sex has a 
   statistically significant effect on Age (p < 0.001).
 
-- Section 5 — Correlation heatmap confirmed Shell Weight 
+- Section 5  — Correlation heatmap confirmed Shell Weight 
   as the strongest predictor of Age (r = 0.63). 
   Multicollinearity was identified among all physical 
   measurements.
 
-- Section 6 — Simple Linear Regression explained 39% of 
+- Section 6  — Simple Linear Regression explained 39% of 
   Age variation. Multiple Linear Regression improved this 
   to 54%. Diagnostic plots confirmed non-linearity, 
   heteroscedasticity, and three influential observations.
 
-- Section 7 — Random Forest classification achieved 73.69% 
+- Section 7  — Random Forest classification achieved 73.69% 
   accuracy. Shell Weight was the most important feature. 
   Old abalones had the highest error (51.88%) due to class 
   imbalance.
 
-- Section 8 — K-Fold Cross Validation confirmed the model 
+- Section 8  — K-Fold Cross Validation confirmed the model 
   is reliable with a cross validated accuracy of 73.52% — 
   a difference of only 0.17% from the original.
 
-- Section 9 — SMOTE balanced the class distribution and 
+- Section 9  — SMOTE balanced the class distribution and 
   retraining improved overall accuracy to 85.95%. Old 
   abalone error dropped from 51.88% to 8.40%.
 
@@ -855,5 +932,3 @@ applicable to biological age classification in other species.
 For a neurological research context, the same pipeline of 
 feature analysis, model validation, and class balancing is 
 directly transferable to clinical classification tasks.
-
-
